@@ -1,0 +1,87 @@
+buildscript {
+    ext {
+        springBootVersion = '1.2.3.RELEASE'
+        dockerPluginVersion = '0.8.2'
+    }
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        jcenter()
+    }
+    dependencies {
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
+        classpath('se.transmode.gradle:gradle-docker:1.2')
+        classpath 'co.tomlee.gradle.plugins:gradle-thrift-plugin:+'
+    }
+}
+
+group = 'dglad'
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'spring-boot'
+apply plugin: 'docker'
+apply plugin: 'thrift'
+
+jar {
+    baseName = 'docker-boot-example'
+    version =  '0.2.1'
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+    maven { url 'https://repo.spring.io/snapshot' }
+    maven { url 'http://mvn/content/groups/public' }
+    maven { url "http://nexus.ecwid.com/content/groups/public" }
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+    compile("org.springframework.boot:spring-boot-starter-web") 
+    testCompile("org.springframework.boot:spring-boot-starter-test")
+    compile('ru.trylogic.spring.boot.thrift:thrift-spring-boot-starter:0.0.3')
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.3'
+}
+
+task buildDocker(type: Docker, dependsOn: build) {
+    push = true
+    applicationName = jar.baseName
+    dockerfile = file('src/main/docker/Dockerfile')
+    doFirst {
+        copy {
+            from jar
+            into stageDir
+        }
+    }
+}
+
+generateThriftSource {
+    out file('build/generated-src/thrift/main')
+
+    verbose false
+    debug false
+    strict false
+
+    generators {
+        java {
+            option 'hashcode'
+            option 'private-members'
+        }
+    }
+}
+
+clean {
+    delete "generated-src/thrift/main"
+}
+
+idea.module.excludeDirs = []
+idea.module.sourceDirs += file('generated-src/thrift/main')
+idea.module.generatedSourceDirs += file('generated-src/thrift/main')
+idea.module.jdkName = '1.8'
